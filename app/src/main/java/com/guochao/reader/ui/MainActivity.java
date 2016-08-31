@@ -1,5 +1,8 @@
 package com.guochao.reader.ui;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.design.widget.Snackbar;
@@ -7,7 +10,9 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.LinearLayout;
 
 import com.guochao.reader.R;
 import com.guochao.reader.adapter.ListItemAdapter;
@@ -33,7 +38,7 @@ public class MainActivity extends BaseActivity {
     private RecyclerView mNewsListView;
     private ListItemAdapter mListAdapter;
     private SwipeRefreshLayout mRefreshLayout;
-    private NetService netService;
+    private NetService mNetService;
     private static final String BASE_URL = "http://apis.baidu.com";
     private int mCurrentPage = 1;
 
@@ -69,15 +74,44 @@ public class MainActivity extends BaseActivity {
         mListAdapter.setOnItemListener(new ListItemAdapter.OnItemListener() {
             @Override
             public void onClick(View view, int position) {
-                Snackbar.make(mNewsListView, mNewsList.get(position).getTitle(), Snackbar.LENGTH_SHORT).show();
+                Intent intent = new Intent(MainActivity.this, WebViewActivity.class);
+                intent.putExtra("url", mNewsList.get(position).getUrl());
+                startActivity(intent);
             }
 
             @Override
             public boolean onLongClick(View view, int position) {
-                Snackbar.make(mNewsListView, mNewsList.get(position).getDescription(), Snackbar.LENGTH_SHORT).show();
+                showChoiceDialog(position);
                 return true;
             }
         });
+    }
+
+    private void showChoiceDialog(final int position) {
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_single_choice, new LinearLayout(this), false);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this).setView(view);
+        final Dialog dialog = builder.create();
+        view.findViewById(R.id.id_bt_collect).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                dialog.dismiss();
+                Snackbar.make(mNewsListView, getString(R.string.action_collect_success), Snackbar.LENGTH_LONG)
+                        .setAction(getString(R.string.look_favourite), new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+
+                            }
+                        })
+                        .show();
+            }
+        });
+        view.findViewById(R.id.id_bt_share).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                dialog.dismiss();
+            }
+        });
+        dialog.show();
     }
 
     private void initSwipeRefreshLayout() {
@@ -100,7 +134,7 @@ public class MainActivity extends BaseActivity {
                 .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
-        netService = retrofit.create(NetService.class);
+        mNetService = retrofit.create(NetService.class);
         fetchData(mCurrentPage = 1);
     }
 
@@ -113,12 +147,12 @@ public class MainActivity extends BaseActivity {
                     if (mRefreshLayout.isRefreshing()) {
                         mRefreshLayout.setRefreshing(false);
                     }
-                    Snackbar.make(mNewsListView, getString(R.string.load_error), Snackbar.LENGTH_LONG).show();
+                    Snackbar.make(mNewsListView, getString(R.string.net_error), Snackbar.LENGTH_LONG).show();
                 }
             }, 1000);
             return;
         }
-        netService.getWxHot(page)
+        mNetService.getWxHot(page)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .map(new Func1<NewsResult, List<News>>() {

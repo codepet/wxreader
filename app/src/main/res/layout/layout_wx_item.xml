@@ -3,7 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="10dp"
+    android:layout_marginBottom="10dp"
+    android:layout_marginLeft="12dp"
+    android:layout_marginRight="12dp"
+    android:layout_marginTop="10dp"
     android:background="@drawable/recycler_bg"
     android:orientation="vertical"
     android:padding="10dp">
@@ -14,7 +17,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="5dp"
         android:layout_marginTop="5dp"
-        android:textColor="@color/colorPrimary"
+        android:textColor="@android:color/black"
         android:textSize="18sp"
         tools:text="UC升级啦" />
 
@@ -35,8 +38,7 @@
         android:layout_marginTop="10dp"
         android:adjustViewBounds="true"
         android:scaleType="centerCrop"
-        tools:ignore="ContentDescription"
-        tools:src="@mipmap/ic_launcher" />
+        tools:ignore="ContentDescription" />
 
     <TextView
         android:id="@+id/id_wx_description"
@@ -51,6 +53,7 @@
         android:layout_marginBottom="10dp"
         android:layout_marginTop="20dp"
         android:text="@string/look_all"
+        android:textColor="@android:color/black"
         android:textSize="14sp" />
 
 </LinearLayout>

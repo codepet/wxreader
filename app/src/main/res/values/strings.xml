@@ -3,4 +3,10 @@
     <string name="look_all">查看全文</string>
     <string name="load_complete">加载成功</string>
     <string name="load_error">加载错误</string>
+    <string name="net_error">网络加载出错，请检查网络</string>
+    <string name="action_collect">收藏</string>
+    <string name="action_share">分享</string>
+    <string name="action_collect_success">收藏成功</string>
+    <string name="action_share_success">分享成功</string>
+    <string name="look_favourite">查看收藏夹</string>
 </resources>
