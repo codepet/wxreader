@@ -30,23 +30,25 @@ import com.guochao.reader.util.ResponseException;
 import java.util.ArrayList;
 import java.util.List;
 
+import rx.Observer;
 import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 import rx.subscriptions.CompositeSubscription;
-import rx.subscriptions.Subscriptions;
 
-public class MainActivity extends BaseActivity {
+public class SearchActivity extends BaseActivity {
 
     private List<News> mNewsList;
     private RecyclerView mNewsListView;
     private ListItemAdapter mListAdapter;
     private SwipeRefreshLayout mRefreshLayout;
+    private Toolbar mToolbar;
     private NetService mNetService;
     private CompositeSubscription mSubscriptions;
     private int mCurrentPage = 1;
+    private String mKeyWord;
 
     @Override
     protected void initView(Bundle savedInstanceState) {
@@ -57,8 +59,16 @@ public class MainActivity extends BaseActivity {
     }
 
     private void initToolbar() {
-        Toolbar mToolbar = (Toolbar) findViewById(R.id.id_toolbar);
+        mToolbar = (Toolbar) findViewById(R.id.id_toolbar);
         setSupportActionBar(mToolbar);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        mToolbar.setNavigationIcon(R.mipmap.ic_back);
+        mToolbar.setNavigationOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
     }
 
     private void initRecyclerView() {
@@ -80,7 +90,7 @@ public class MainActivity extends BaseActivity {
                 int totalItemCount = recyclerView.getLayoutManager().getItemCount();
                 if (lastVisibleItem >= totalItemCount - 2 && dy > 0) {
                     try {
-                        fetchData(++mCurrentPage);
+                        fetchData(mKeyWord, ++mCurrentPage);
                     } catch (ResponseException e) {
                         Snackbar.make(mNewsListView, getString(R.string.load_error), Snackbar.LENGTH_LONG).show();
                     }
@@ -90,7 +100,7 @@ public class MainActivity extends BaseActivity {
         mListAdapter.setOnItemListener(new ListItemAdapter.OnItemListener() {
             @Override
             public void onClick(View view, int position) {
-                Intent intent = new Intent(MainActivity.this, WebViewActivity.class);
+                Intent intent = new Intent(SearchActivity.this, WebViewActivity.class);
                 intent.putExtra("url", mNewsList.get(position).getUrl());
                 startActivity(intent);
             }
@@ -115,7 +125,7 @@ public class MainActivity extends BaseActivity {
                         .setAction(getString(R.string.look_favourite), new View.OnClickListener() {
                             @Override
                             public void onClick(View view) {
-                                startActivity(new Intent(MainActivity.this, FavouriteActivity.class));
+
                             }
                         })
                         .show();
@@ -129,15 +139,6 @@ public class MainActivity extends BaseActivity {
         });
         Button button = (Button) view.findViewById(R.id.id_bt_search);
         button.setText("搜索\"" + mNewsList.get(position).getDescription() + "\"");
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(MainActivity.this, SearchActivity.class);
-                intent.putExtra("src", mNewsList.get(position).getDescription());
-                startActivity(intent);
-                dialog.dismiss();
-            }
-        });
         dialog.show();
     }
 
@@ -150,7 +151,7 @@ public class MainActivity extends BaseActivity {
             @Override
             public void onRefresh() {
                 try {
-                    fetchData(mCurrentPage = 1);
+                    fetchData(mKeyWord, mCurrentPage = 1);
                 } catch (ResponseException e) {
                     Snackbar.make(mNewsListView, getString(R.string.load_error), Snackbar.LENGTH_LONG).show();
                 }
@@ -160,17 +161,18 @@ public class MainActivity extends BaseActivity {
 
     @Override
     protected void fetchData() {
+        mKeyWord = getIntent().getStringExtra("src");
         mNetService = HttpCore.getInstance(getApplicationContext()).getNetService();
         mSubscriptions = new CompositeSubscription();
         mRefreshLayout.setRefreshing(true);
         try {
-            fetchData(mCurrentPage = 1);
+            fetchData(mKeyWord, mCurrentPage = 1);
         } catch (ResponseException e) {
             Snackbar.make(mNewsListView, getString(R.string.load_error), Snackbar.LENGTH_LONG).show();
         }
     }
 
-    private void fetchData(int page) throws ResponseException {
+    private void fetchData(String keyWord, int page) throws ResponseException {
         if (!NetConnectionUtil.isNetConnected(this)) {
             new Handler().postDelayed(new Runnable() {
                 @Override
@@ -184,7 +186,7 @@ public class MainActivity extends BaseActivity {
             return;
         }
         try {
-            Subscription mSubscription = mNetService.getWxHot(page)
+            Subscription mSubscription = mNetService.queryDetail(keyWord, page)
                     .subscribeOn(Schedulers.newThread())
                     .observeOn(AndroidSchedulers.mainThread())
                     .map(new Func1<NewsResult, List<News>>() {
@@ -195,12 +197,24 @@ public class MainActivity extends BaseActivity {
                                 return null;
                             }
                             return newsResult.getNewslist();
-
                         }
                     })
-                    .subscribe(new Action1<List<News>>() {
+                    .subscribe(new Observer<List<News>>() {
                         @Override
-                        public void call(List<News> list) {
+                        public void onCompleted() {
+                            if (mRefreshLayout.isRefreshing()) {
+                                mRefreshLayout.setRefreshing(false);
+                                Snackbar.make(mNewsListView, getString(R.string.load_complete), Snackbar.LENGTH_LONG).show();
+                            }
+                        }
+
+                        @Override
+                        public void onError(Throwable e) {
+
+                        }
+
+                        @Override
+                        public void onNext(List<News> list) {
                             if (list == null || list.size() <= 0) {
                                 if (mRefreshLayout.isRefreshing()) {
                                     mRefreshLayout.setRefreshing(false);
@@ -212,19 +226,42 @@ public class MainActivity extends BaseActivity {
                             }
                             mNewsList.addAll(list);
                             mListAdapter.notifyDataSetChanged();
-                            if (mRefreshLayout.isRefreshing()) {
-                                mRefreshLayout.setRefreshing(false);
-                                Snackbar.make(mNewsListView, getString(R.string.load_complete), Snackbar.LENGTH_LONG).show();
-                            }
-
                         }
                     });
+//                    .subscribe(new Action1<List<News>>() {
+//                        @Override
+//                        public void call(List<News> list) {
+//                            if (list == null || list.size() <= 0) {
+//                                if (mRefreshLayout.isRefreshing()) {
+//                                    mRefreshLayout.setRefreshing(false);
+//                                }
+//                                return;
+//                            }
+//                            if (mCurrentPage == 1) {
+//                                mNewsList.clear();
+//                            }
+//                            mNewsList.addAll(list);
+//                            mListAdapter.notifyDataSetChanged();
+//                            if (mRefreshLayout.isRefreshing()) {
+//                                mRefreshLayout.setRefreshing(false);
+//                                Snackbar.make(mNewsListView, getString(R.string.load_complete), Snackbar.LENGTH_LONG).show();
+//                            }
+//
+//                        }
+//                    });
             mSubscriptions.add(mSubscription);
         } catch (Exception e) {
             unSubscribed();
             e.printStackTrace();
             throw new ResponseException(e);
         }
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mToolbar.setTitle(mKeyWord);
     }
 
     @Override
@@ -234,19 +271,35 @@ public class MainActivity extends BaseActivity {
     }
 
     private void unSubscribed() {
-        if (mSubscriptions != null && !mSubscriptions.isUnsubscribed()) {
+        if (mSubscriptions != null && mSubscriptions.isUnsubscribed()) {
             mSubscriptions.unsubscribe();
         }
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_main, menu);
+        getMenuInflater().inflate(R.menu.menu_search, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.id_filter:
+                break;
+            case R.id.id_collect:
+                Snackbar.make(mNewsListView, getString(R.string.action_collect_success), Snackbar.LENGTH_LONG)
+                        .setAction(getString(R.string.look_favourite), new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+                                startActivity(new Intent(SearchActivity.this, FavouriteActivity.class));
+                            }
+                        })
+                        .show();
+                break;
+            default:
+                break;
+        }
         return super.onOptionsItemSelected(item);
     }
 }

@@ -19,4 +19,14 @@ public interface NetService {
     @GET("/txapi/weixin/wxhot?num=10")
     Observable<NewsResult> getWxHot(@Query("page") int page);
 
+    /**
+     * 按文章来源查询
+     *
+     * @param page
+     * @return
+     */
+    @Headers("apikey:b095a4cd0e86b8b6ac36797ac8bcbf91")
+    @GET("/txapi/weixin/wxhot?num=10")
+    Observable<NewsResult> queryDetail(@Query("src") String src, @Query("page") int page);
+
 }

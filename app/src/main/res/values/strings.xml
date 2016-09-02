@@ -9,4 +9,7 @@
     <string name="action_collect_success">收藏成功</string>
     <string name="action_share_success">分享成功</string>
     <string name="look_favourite">查看收藏夹</string>
+    <string name="menu_filter">过滤</string>
+    <string name="menu_collect">收藏</string>
+    <string name="menu_favourite">收藏夹</string>
 </resources>
